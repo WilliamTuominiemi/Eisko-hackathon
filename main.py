@@ -175,6 +175,64 @@ def filter_by_most_common_width(cell_walls, y_coords, tolerance=5):
     return filtered
 
 
+def extract_cell_squares(filtered_cells, image_path):
+    """
+    From filtered_cells (list of (y, left, right, width)), compute square corners
+    (left, top, right, bottom) where top is midpoint between this center y and previous center,
+    and bottom is midpoint between this center y and next center. Edges use the sole neighbor
+    or fallback to half the width if no neighbor exists.
+    """
+    if not filtered_cells:
+        return []
+
+    # Open image to get bounds
+    img = Image.open(image_path).convert('L')
+    img_array = np.array(img)
+    img_height, img_width = img_array.shape
+
+    centers = [c[0] for c in filtered_cells]
+    squares = []
+
+    n = len(centers)
+    for i, (y, left, right, width) in enumerate(filtered_cells):
+        prev_y = centers[i - 1] if i > 0 else None
+        next_y = centers[i + 1] if i < n - 1 else None
+
+        if prev_y is not None and next_y is not None:
+            top = (prev_y + y) // 2
+            bottom = (y + next_y) // 2
+        elif prev_y is None and next_y is not None:
+            # first cell: top halfway toward next
+            top = max(0, y - (next_y - y) // 2)
+            bottom = (y + next_y) // 2
+        elif prev_y is not None and next_y is None:
+            # last cell: bottom halfway from previous
+            top = (prev_y + y) // 2
+            bottom = min(img_height - 1, y + (y - prev_y) // 2)
+        else:
+            # single cell fallback: use half the width as half-height
+            half_h = width // 2
+            top = max(0, y - half_h)
+            bottom = min(img_height - 1, y + half_h)
+
+        # Ensure integer and within bounds
+        top = int(max(0, min(img_height - 1, top)))
+        bottom = int(max(0, min(img_height - 1, bottom)))
+
+        # If top >= bottom, fallback to square centered at y using width
+        if top >= bottom:
+            half_h = width // 2 or 1
+            top = int(max(0, y - half_h))
+            bottom = int(min(img_height - 1, y + half_h))
+
+        # Clamp left/right as well
+        left = int(max(0, left)) if left is not None else None
+        right = int(min(img_width - 1, right)) if right is not None else None
+
+        squares.append((y, left, top, right, bottom))
+
+    return squares
+
 # Usage with your existing code
 x_pos, y_coords = find_non_white_at_fraction(
     'output_page.jpg', 
@@ -194,6 +252,9 @@ cell_walls = find_cell_walls(
 # Method 1: Most common width
 filtered_cells = filter_by_most_common_width(cell_walls, y_coords, tolerance=5)
 
-print("\nFiltered cells (most common width):")
-for y, left, right, width in filtered_cells:
-    print(f"y={y}: Left={left}, Right={right}, Width={width}px")
+# New: extract square corners for each filtered cell
+squares = extract_cell_squares(filtered_cells, 'output_page.jpg')
+
+print("\nFiltered cells (most common width) and square corners:")
+for y, left, top, right, bottom in squares:
+    print(f"center_y={y}: Left={left}, Top={top}, Right={right}, Bottom={bottom}")
