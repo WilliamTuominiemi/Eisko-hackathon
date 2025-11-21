@@ -13,7 +13,8 @@ def convert_pdf_to_images(
     images = convert_from_path(
         pdf_path,
         poppler_path=poppler_path,
-        first_page=2,  # Skip the first page
+        first_page=4,  # Skip the first page
+        last_page=4,
         dpi=300,
     )
 

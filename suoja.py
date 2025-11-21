@@ -288,7 +288,7 @@ def read_text_from_crops(regions, use_ocr=True):
                     cropped_img,
                     config="--psm 7 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
                 ).strip()
-                text = text.replace(" ", "").replace("\n", "")
+                text = text.replace(" ", "").replace("\n", "").replace("\r", "")
             except Exception:
                 pass
 
@@ -299,31 +299,86 @@ def read_text_from_crops(regions, use_ocr=True):
     return results
 
 
-# Main execution
-if __name__ == "__main__":
-    image_path = "output_page.jpg"
-    output_folder = "suoja_extracts"
+def extract_suoja_values_from_image(image_path, use_ocr=True, debug=False, save_crops=False, output_folder="suoja_extracts"):
+    """
+    Composable function to extract all Suoja values from a JPG image in order.
 
-    print("Extracting Suoja numbers from electrical component table...")
-    print("=" * 60)
+    This combines the extraction and OCR functionality to provide a simple interface
+    that returns Suoja values in the exact order they appear on the page (top to bottom).
 
-    # Extract Suoja cell regions and save them as images
+    Args:
+        image_path: Path to the JPG image file
+        use_ocr: If True, attempt to use OCR to read text (requires pytesseract)
+        debug: If True, print debug information during extraction
+        save_crops: If True, save cropped regions to files
+        output_folder: Folder to save cropped images
+
+    Returns:
+        List of strings containing Suoja values in the order they appear on the page.
+        If OCR is not available or fails, returns None for that value.
+
+    Example:
+        >>> values = extract_suoja_values_from_image("page_2.jpg")
+        >>> print(values)
+        ['F1', 'F2', 'F3', 'F4', ...]
+    """
+    # Check if pytesseract is available
+    ocr_available = False
+    if use_ocr:
+        try:
+            import pytesseract
+
+            pytesseract.get_tesseract_version()
+            ocr_available = True
+        except Exception:
+            if debug:
+                print(
+                    "⚠️  Tesseract OCR not available. Install with: brew install tesseract"
+                )
+
+    # Extract Suoja regions from the image (returns in y-position order)
     suoja_regions = extract_suoja_numbers(
-        image_path, debug=True, save_crops=True, output_folder=output_folder
+        image_path,
+        debug=debug,
+        save_crops=save_crops,
+        output_folder=output_folder,
     )
 
-    print("\n" + "=" * 60)
-    print("READING TEXT FROM EXTRACTED REGIONS:")
-    print("=" * 60)
+    if not suoja_regions:
+        if debug:
+            print("No Suoja regions found in the image")
+        return []
 
-    # Try to read text from the cropped regions
-    text_results = read_text_from_crops(suoja_regions, use_ocr=True)
+    # Extract text from each region in order
+    suoja_values = []
 
-    print("\nExtracted Suoja Values:")
-    print("-" * 40)
-    for idx, y_pos, text in text_results:
-        print(f"Suoja {idx + 1}: {text}")
+    for idx, y_pos, cropped_img in suoja_regions:
+        text = None
 
-    print("\n" + "=" * 60)
-    print(f"Total: {len(text_results)} Suoja values extracted")
-    print(f"Images saved in folder: {output_folder}/")
+        if ocr_available:
+            try:
+                # Use pytesseract to extract text
+                text = pytesseract.image_to_string(
+                    cropped_img,
+                    config="--psm 7 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
+                ).strip()
+                # Clean up the text
+                text = text.replace(" ", "").replace("\n", "").replace("\r", "")
+
+                # If text is empty after cleaning, set to None
+                if not text:
+                    text = None
+
+            except Exception as e:
+                if debug:
+                    print(f"OCR failed for region {idx}: {e}")
+                text = None
+
+        suoja_values.append(text)
+
+    if debug:
+        print(f"\nExtracted {len(suoja_values)} Suoja values in order:")
+        for i, value in enumerate(suoja_values):
+            print(f"  {i + 1}. {value if value else '[OCR failed]'}")
+
+    return suoja_values
