@@ -1,6 +1,7 @@
 from PIL import Image
 import numpy as np
 from collections import Counter
+import os
 
 def find_non_white_at_fraction(image_path, x_fraction=1/5, intensity_threshold=250, merge_threshold=3):
     """
@@ -233,6 +234,42 @@ def extract_cell_squares(filtered_cells, image_path):
 
     return squares
 
+def save_squares(squares, image_path, out_dir='extracted_cells', prefix='cell'):
+    """
+    Save cropped rectangles defined by squares (list of (y, left, top, right, bottom))
+    from the original image to out_dir. Returns list of saved file paths.
+    """
+    if not squares:
+        return []
+
+    os.makedirs(out_dir, exist_ok=True)
+    img = Image.open(image_path).convert('RGB')
+    img_w, img_h = img.size
+
+    saved_paths = []
+    for i, (y, left, top, right, bottom) in enumerate(squares):
+        # Skip incomplete boxes
+        if left is None or right is None or top is None or bottom is None:
+            continue
+
+        # Clamp coordinates
+        l = max(0, int(left))
+        u = max(0, int(top))
+        r = min(img_w, int(right) + 1)    # PIL crop right is exclusive
+        d = min(img_h, int(bottom) + 1)   # PIL crop lower is exclusive
+
+        # Skip invalid boxes
+        if r <= l or d <= u:
+            continue
+
+        crop = img.crop((l, u, r, d))
+        filename = f"{prefix}_{i}_y{y}_l{l}_t{u}_r{r-1}_b{d-1}.png"
+        out_path = os.path.join(out_dir, filename)
+        crop.save(out_path)
+        saved_paths.append(out_path)
+
+    return saved_paths
+
 # Usage with your existing code
 x_pos, y_coords = find_non_white_at_fraction(
     'output_page.jpg', 
@@ -258,3 +295,9 @@ squares = extract_cell_squares(filtered_cells, 'output_page.jpg')
 print("\nFiltered cells (most common width) and square corners:")
 for y, left, top, right, bottom in squares:
     print(f"center_y={y}: Left={left}, Top={top}, Right={right}, Bottom={bottom}")
+
+# New: save cropped rectangles to folder
+saved = save_squares(squares, 'output_page.jpg', out_dir='extracted_cells')
+print(f"\nSaved {len(saved)} cropped images to 'extracted_cells':")
+for p in saved:
+    print(p)
