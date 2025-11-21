@@ -1,5 +1,6 @@
 from PIL import Image
 import numpy as np
+from collections import Counter
 
 def find_non_white_at_fraction(image_path, x_fraction=1/5, intensity_threshold=250, merge_threshold=3):
     """
@@ -134,7 +135,47 @@ def is_wall(img_array, x, y, wall_height, intensity_threshold):
     
     return True
 
-# Complete usage
+def filter_by_most_common_width(cell_walls, y_coords, tolerance=5):
+    """
+    Filter cell walls to keep only those matching the most common width.
+    
+    Args:
+        cell_walls: List of (left_x, right_x) tuples
+        y_coords: Corresponding y coordinates
+        tolerance: Allow widths within ±tolerance pixels of the most common
+    
+    Returns:
+        Filtered list of (y, left_x, right_x, width) tuples
+    """
+    # Calculate widths for valid walls
+    valid_cells = []
+    for i, (left, right) in enumerate(cell_walls):
+        if left is not None and right is not None:
+            width = right - left
+            valid_cells.append((y_coords[i], left, right, width))
+    
+    if not valid_cells:
+        return []
+    
+    # Get all widths
+    widths = [cell[3] for cell in valid_cells]
+    
+    # Find most common width
+    width_counts = Counter(widths)
+    most_common_width = width_counts.most_common(1)[0][0]
+    
+    print(f"Most common width: {most_common_width}px (appears {width_counts[most_common_width]} times)")
+    
+    # Filter cells with width close to most common
+    filtered = [
+        cell for cell in valid_cells 
+        if abs(cell[3] - most_common_width) <= tolerance
+    ]
+    
+    return filtered
+
+
+# Usage with your existing code
 x_pos, y_coords = find_non_white_at_fraction(
     'output_page.jpg', 
     x_fraction=1/5, 
@@ -142,10 +183,6 @@ x_pos, y_coords = find_non_white_at_fraction(
     merge_threshold=3
 )
 
-print(f"Scanning at x={x_pos}")
-print(f"Found {len(y_coords)} merged non-white line positions")
-
-# Find cell walls
 cell_walls = find_cell_walls(
     'output_page.jpg',
     y_coords,
@@ -154,10 +191,9 @@ cell_walls = find_cell_walls(
     wall_height=10
 )
 
-print("\nCell walls found:")
-for i, (left, right) in enumerate(cell_walls):
-    if left is not None and right is not None:
-        width = right - left
-        print(f"Row {i} (y={y_coords[i]}): Left wall at x={left}, Right wall at x={right}, Width={width}px")
-    else:
-        print(f"Row {i} (y={y_coords[i]}): Walls not found (left={left}, right={right})")
+# Method 1: Most common width
+filtered_cells = filter_by_most_common_width(cell_walls, y_coords, tolerance=5)
+
+print("\nFiltered cells (most common width):")
+for y, left, right, width in filtered_cells:
+    print(f"y={y}: Left={left}, Right={right}, Width={width}px")
