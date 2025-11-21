@@ -70,6 +70,36 @@ def ensure_three_columns(rows, headers_provided=False):
     return out
 
 
+def ensure_rows_cover_images(rows, headers, row_images):
+    """Pad rows with empty entries so every image gets its own row."""
+    if not row_images:
+        return rows
+    padded = [list(r) for r in rows]
+    needed = len(row_images)
+
+    def blank_row():
+        return ["", "", ""]
+
+    if headers:
+        missing = needed - len(padded)
+        if missing > 0:
+            padded.extend(blank_row() for _ in range(missing))
+        return padded
+
+    if padded and all(isinstance(c, str) for c in padded[0]):
+        header_row = padded[0]
+        data_rows = padded[1:]
+        missing = needed - len(data_rows)
+        if missing > 0:
+            data_rows.extend(blank_row() for _ in range(missing))
+        return [header_row] + data_rows
+
+    missing = needed - len(padded)
+    if missing > 0:
+        padded.extend(blank_row() for _ in range(missing))
+    return padded
+
+
 SUPPORTED_IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg")
 
 
@@ -265,7 +295,7 @@ def main():
     p.add_argument("-t", "--title", default="Table", help="HTML page title")
     p.add_argument("--tailwind", action="store_true", help="Include Tailwind CSS via CDN for styling")
     p.add_argument("--headers", help="Comma-separated headers for the table (3 values)")
-    p.add_argument("--image-dir", help="Directory containing photos to insert into the first column")
+    p.add_argument("--image-dir", "--extracted-cells", dest="image_dir", help="Directory containing photos to insert into the first column")
     args = p.parse_args()
 
     inp = Path(args.input)
@@ -295,6 +325,7 @@ def main():
     if fmt in ("csv",):
         rows = read_csv(inp)
         rows = ensure_three_columns(rows)
+        rows = ensure_rows_cover_images(rows, headers=headers, row_images=image_sources)
         html = generate_html(rows, headers=headers, title=args.title, use_tailwind=use_tailwind, row_images=image_sources)
     elif fmt in ("json",):
         data = read_json(inp)
@@ -308,9 +339,11 @@ def main():
             else:
                 derived_headers = headers
                 body_rows = rows
+            body_rows = ensure_rows_cover_images(body_rows, headers=derived_headers, row_images=image_sources)
             html = generate_html(body_rows, headers=derived_headers, title=args.title, use_tailwind=use_tailwind, row_images=image_sources)
         else:
             rows = ensure_three_columns(data)
+            rows = ensure_rows_cover_images(rows, headers=headers, row_images=image_sources)
             html = generate_html(rows, headers=headers, title=args.title, use_tailwind=use_tailwind, row_images=image_sources)
     else:
         print(f"Unsupported input format: .{fmt}. Use .csv or .json", file=sys.stderr)
