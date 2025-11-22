@@ -240,12 +240,21 @@ def save_components_to_folder(input_path, component_areas, original_image_path, 
 
     # get suoja start and end boundaries
     component_center_y = component_areas[0]['y_end']
-    print(find_suoja_cell_start_and_end(crop_offset, component_center_y, original_image_path))
+    suoja_edges = find_suoja_cell_start_and_end(crop_offset, component_center_y, original_image_path)
 
     # Save each component
     for i, area in enumerate(component_areas, start=1):
         # print(area)
         crop_box = (area['x_start'], area['y_start'], area['x_end'], area['y_end'])
+
+        suoja_area = {
+            'x_start': suoja_edges[0],
+            'x_end': suoja_edges[1],
+            'y_start': area['y_start'],
+            'y_end': area['y_end']
+        }
+
+        print(suoja_area)
 
         cropped = img.crop(crop_box)
         cropped_images.append(cropped)
