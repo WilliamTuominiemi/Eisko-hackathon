@@ -23,36 +23,21 @@ if uploaded_file is not None:
     # Process button
     if st.button('Analyze switchboard', type='primary'):
         try:
-            # Create temporary directories for processing
-            cells_dir = tempfile.mkdtemp()
-
-            with st.spinner('Converting PDF page 4 to image...'):
-                # Convert PDF to images (page 4 only, outputs to 'pages' directory)
+            with st.spinner('Converting PDF page 2 to image...'):
+                # Convert PDF to images (page 2 only, outputs to 'pages' directory)
                 convert_pdf_to_images(tmp_path)
 
-            with st.spinner('Extracting cells and suoja values from page 4...'):
+            with st.spinner('Extracting cells and suoja values from page 2...'):
                 # Get the page file
-                page_file = os.path.join('pages', 'page_4.jpg')
+                page_file = os.path.join('pages', 'page_2.jpg')
 
                 if not os.path.exists(page_file):
-                    st.error('Page 4 was not extracted from the PDF')
+                    st.error('Page 2 was not extracted from the PDF')
                 else:
                     # Extract table cells (with optimizations: in-memory processing)
                     (cell_images, component_with_suoja) = do_extraction(page_file)
 
                     num_cells = len(cell_images)
-
-                    # Save cells temporarily for comparison
-                    for i, cell_img in enumerate(cell_images):
-                        cell_img.save(os.path.join(cells_dir, f'page_2_cell_{i}.png'))
-
-                    # Extract Suoja values (with optimizations: parallel OCR)
-                    # suoja_values = extract_suoja_values_from_image(
-                    #     page_file,
-                    #     use_ocr=True,
-                    #     save_crops=False,
-                    #     parallel=True,
-                    # )
 
                     # Display results
                     st.success('Extraction completed')
@@ -61,25 +46,14 @@ if uploaded_file is not None:
                     col1, col2 = st.columns(2)
                     with col1:
                         st.metric('Cells extracted', num_cells)
-                    # with col2:
-                    #     st.metric('Suoja values extracted', len(suoja_values))
-
-                    # Compare components to find unique items
-                    # if len(suoja_values) != num_cells:
-                    #     st.warning(
-                    #         f'Warning: Number of suoja values ({len(suoja_values)}) does not match number of cells ({num_cells})'
-                    #     )
+                    with col2:
+                        st.metric('Components with suoja', len(component_with_suoja))
 
                     print(component_with_suoja)
                     print(len(component_with_suoja))
 
-                    if len(component_with_suoja) and num_cells > 0:
+                    if component_with_suoja and num_cells > 0:
                         with st.spinner('Comparing components...'):
-                            # unique_components = compare_components(
-                            #     suoja_values,
-                            #     cells_dir=cells_dir,
-                            # )
-                            print('component_with_suoja')
                             unique_components = compare_components(component_with_suoja)
 
                         st.subheader('Unique components')
@@ -105,8 +79,6 @@ if uploaded_file is not None:
                     else:
                         st.info('No components to compare')
 
-                    # Clean up temporary directories
-                    shutil.rmtree(cells_dir)
                     # Clean up pages directory
                     if os.path.exists('pages'):
                         shutil.rmtree('pages')

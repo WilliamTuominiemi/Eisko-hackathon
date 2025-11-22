@@ -3,6 +3,7 @@ import numpy as np
 import os
 from typing import Dict
 from OCR import ocr_read_area
+import pytesseract
 
 
 def find_component_area(filepath):
@@ -128,7 +129,7 @@ def find_component_area(filepath):
 def export_area_to_analyze(filepath, area, output_path):
     img = Image.open(filepath)
 
-    #{'x_start': 225, 'x_end': 997, 'y_start': 320, 'y_end': 2103}
+    # {'x_start': 225, 'x_end': 997, 'y_start': 320, 'y_end': 2103}
     print(area)
 
     crop_box = (area['x_start'], area['y_start'], area['x_end'], area['y_end'])
@@ -211,38 +212,107 @@ def extract_components(lines, image_path):
 
 
 def find_suoja_cell_start_and_end(crop_offset, y_pos, original_image_path):
-    # Define threshold for "black" pixels (adjust as needed)
-    BLACK_THRESHOLD = 100
+    img = Image.open(original_image_path)
 
-    start_x = crop_offset[0]
-    start_y = crop_offset[1] + y_pos
+    # Search for "Suoja" in the header area (at the top of the full image)
+    header_y_start = 0  # Start from the top of the image
+    header_y_end = 200  # First 200 pixels should contain the header
+    header_x_start = 0
+    header_x_end = img.width
 
-    img_array = np.array(Image.open(original_image_path).convert('L'))
+    # Crop just the header area where column names should be
+    header_crop = img.crop((header_x_start, header_y_start, header_x_end, header_y_end))
 
-    # Get the row of pixels
-    row = img_array[start_y, start_x:]
+    # Use pytesseract to get detailed word-level data with bounding boxes
+    ocr_data = pytesseract.image_to_data(
+        header_crop, output_type=pytesseract.Output.DICT
+    )
 
-    height, width = img_array.shape
-    row_width = width - start_x
+    # Find the word "Suoja" and get its x-coordinates
+    suoja_left = None
+    suoja_right = None
 
-    # Find consecutive black pixels
-    is_black = row < BLACK_THRESHOLD
+    for i, word in enumerate(ocr_data['text']):
+        if word.lower() == 'suoja':
+            # Get the bounding box of this word
+            x = ocr_data['left'][i]
+            w = ocr_data['width'][i]
+            suoja_left = x + header_x_start
+            suoja_right = x + w + header_x_start
+            print(f"Found 'Suoja' header at x: {suoja_left} to {suoja_right}")
+            break
 
-    cursor = 0
-    bars_count = 0
+    # If we didn't find "Suoja", try looking for it with some fuzzy matching
+    if suoja_left is None:
+        for i, word in enumerate(ocr_data['text']):
+            if 'suoj' in word.lower() or 'suo' in word.lower():
+                x = ocr_data['left'][i]
+                w = ocr_data['width'][i]
+                suoja_left = x + header_x_start
+                suoja_right = x + w + header_x_start
+                print(
+                    f"Found similar word '{word}' at x: {suoja_left} to {suoja_right}"
+                )
+                break
 
-    suoja_start = 0
-    suoja_end = 0
+    if suoja_left is None:
+        print(
+            "Warning: Could not find 'Suoja' header, falling back to column detection"
+        )
+        # Fallback: use the old bar-counting method
+        BLACK_THRESHOLD = 100
+        start_x = crop_offset[0]
+        start_y = crop_offset[1] + y_pos
+        img_array = np.array(img.convert('L'))
+        row = img_array[start_y, start_x:]
+        row_width = img.width - start_x
+        is_black = row < BLACK_THRESHOLD
 
-    for x in range(row_width):
-        if is_black[x] and x - cursor > 10:
-            cursor = x
-            bars_count += 1
-            true_position = x + crop_offset[0]
-            if bars_count == 2:
-                suoja_start = true_position
-            if bars_count == 3:
-                suoja_end = true_position
+        cursor = 0
+        bars_positions = []
+
+        for x in range(row_width):
+            if is_black[x] and x - cursor > 10:
+                cursor = x
+                true_position = x + crop_offset[0]
+                bars_positions.append(true_position)
+
+        if len(bars_positions) >= 3:
+            suoja_start = bars_positions[1]
+            suoja_end = bars_positions[2]
+        else:
+            suoja_start = 0
+            suoja_end = 0
+    else:
+        # Now find the vertical bars (column separators) closest to these x-coordinates
+        BLACK_THRESHOLD = 100
+        start_y = crop_offset[1] + y_pos
+        img_array = np.array(img.convert('L'))
+        row = img_array[start_y, :]
+        is_black = row < BLACK_THRESHOLD
+
+        # Find all vertical bars
+        cursor = 0
+        bars_positions = []
+        for x in range(img.width):
+            if is_black[x] and x - cursor > 10:
+                cursor = x
+                bars_positions.append(x)
+
+        # Find the bars that bound the Suoja column
+        # The start bar should be just before suoja_left
+        # The end bar should be just after suoja_right
+        suoja_start = suoja_left
+        suoja_end = suoja_right
+
+        for bar_x in bars_positions:
+            if bar_x < suoja_left and (
+                suoja_start == suoja_left or bar_x > suoja_start
+            ):
+                suoja_start = bar_x
+            if bar_x > suoja_right and (suoja_end == suoja_right or bar_x < suoja_end):
+                suoja_end = bar_x
+                break
 
     return tuple((suoja_start, suoja_end))
 
@@ -312,5 +382,3 @@ def do_extraction(image_path, out_dir='extracted_cells'):
     return save_components_to_folder(
         output_path, component_areas, image_path, crop_offset
     )
-
-# do_extraction("pages/page_2.jpg")
