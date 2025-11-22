@@ -3,11 +3,11 @@ import numpy as np
 from collections import Counter
 import os
 
-def find_component_area(filename):
-    print(filename)
+def find_component_area(filepath):
+    print(filepath)
     
     # Load the image and convert to grayscale
-    img = Image.open(filename).convert('L')
+    img = Image.open(filepath).convert('L')
     img_array = np.array(img)
     
     height, width = img_array.shape
@@ -71,24 +71,39 @@ def find_component_area(filename):
         print("No thicker black bar found")
         return None
     
-    # Now trace the bar up and down to find start and end positions
-    # Go upward from initial_y
+    # Assuming img_array is a numpy array (grayscale image), BLACK_THRESHOLD is defined,
+    # initial_y and bar_center_x are the starting point in the middle of the bar,
+    # height = img_array.shape[0]
+
+    GAP_TOLERANCE = 1  # Allow this many consecutive non-black pixels before stopping (adjust as needed for noise)
+
+    # Trace upward (towards smaller y)
     bar_top = initial_y
-    for y in range(initial_y - 1, -1, -1):
-        # Check if there's still black pixels at the bar position
+    y = initial_y - 1
+    gap_count = 0
+    while y >= 0:
         if img_array[y, bar_center_x] < BLACK_THRESHOLD:
             bar_top = y
+            gap_count = 0
         else:
-            break
-    
-    # Go downward from initial_y
+            gap_count += 1
+            if gap_count > GAP_TOLERANCE:
+                break
+        y -= 1
+
+    # Trace downward (towards larger y)
     bar_bottom = initial_y
-    for y in range(initial_y + 1, height):
-        # Check if there's still black pixels at the bar position
+    y = initial_y + 1
+    gap_count = 0
+    while y < height:
         if img_array[y, bar_center_x] < BLACK_THRESHOLD:
             bar_bottom = y
+            gap_count = 0
         else:
-            break
+            gap_count += 1
+            if gap_count > GAP_TOLERANCE:
+                break
+        y += 1
     
     # print(f"First bar vertical range: y={bar_top} to y={bar_bottom} (height={bar_bottom - bar_top + 1})")
     
@@ -96,6 +111,7 @@ def find_component_area(filename):
     next_bar_x = None
     start_x = bar_center_x + 1  # Start after the current bar
     
+
     for x in range(start_x, width):
         if img_array[bar_top, x] < BLACK_THRESHOLD:
             next_bar_x = x
@@ -111,50 +127,40 @@ def find_component_area(filename):
             'y_end': bar_bottom,
             'height': bar_bottom - bar_top + 1
         }
-    
-    # Trace the next bar vertically to find its full extent
-    next_bar_top = bar_top
-    for y in range(bar_top - 1, -1, -1):
-        if img_array[y, next_bar_x] < BLACK_THRESHOLD:
-            next_bar_top = y
-        else:
-            break
-    
-    next_bar_bottom = bar_top
-    for y in range(bar_top + 1, height):
-        if img_array[y, next_bar_x] < BLACK_THRESHOLD:
-            next_bar_bottom = y
-        else:
-            break
+  
     
     # print(f"Next bar vertical range: y={next_bar_top} to y={next_bar_bottom} (height={next_bar_bottom - next_bar_top + 1})")
     
     return {
-        'x_start': bar_x,
-        'x_end': next_bar_x,
-        'y_start': min(bar_top, next_bar_top),
-        'y_end': max(bar_bottom, next_bar_bottom),
+        'x_start': bar_x + 30,
+        'x_end': next_bar_x - 30,
+        'y_start': bar_top,
+        'y_end': bar_bottom,
     }
+
+def export_area_to_analyze(filepath):
+    area = find_component_area(filepath)
+    output_path = "extracted_components.jpg"
+
+    print(area)
+
+    img = Image.open(input_path)
+
+    crop_box = (
+        area['x_start'],
+        area['y_start'],
+        area['x_end'],
+        area['y_end']
+    )
+
+    cropped = img.crop(crop_box)
+
+    cropped.save(output_path, "JPEG", quality=95)
+
+    print(f"Saved cropped component → {output_path}")
+    print(f"Size: {cropped.width} × {cropped.height} pixels")
+    
 
 # Test the function
 input_path  = "pages/page_2.jpg"
-area = find_component_area("pages/page_2.jpg")
-output_path = "extracted_components.jpg"
-
-print(area)
-
-img = Image.open(input_path)
-
-crop_box = (
-    area['x_start'],
-    area['y_start'],
-    area['x_end'],
-    area['y_end']
-)
-
-cropped = img.crop(crop_box)
-
-cropped.save(output_path, "JPEG", quality=95)
-
-print(f"Saved cropped component → {output_path}")
-print(f"Size: {cropped.width} × {cropped.height} pixels")
+export_area_to_analyze(input_path)
