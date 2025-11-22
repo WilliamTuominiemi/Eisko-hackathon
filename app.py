@@ -2,6 +2,7 @@ import streamlit as st
 import tempfile
 import os
 import shutil
+import glob
 from pdf_to_jpeg import convert_pdf_to_images
 from suoja import extract_suoja_values_from_image
 from make_comparisons import compare_components
@@ -27,41 +28,86 @@ if uploaded_file is not None:
             # Create temporary directories for processing
             cells_dir = tempfile.mkdtemp()
 
-            with st.spinner('Converting PDF page 4 to image...'):
-                # Convert PDF to images (page 4 only, outputs to 'pages' directory)
+            with st.spinner('Converting PDF to images...'):
+                # Convert PDF to images (all pages, outputs to 'pages' directory)
                 convert_pdf_to_images(tmp_path)
 
-            with st.spinner('Extracting cells and suoja values from page 4...'):
-                # Get the page file
-                page_file = os.path.join('pages', 'page_4.jpg')
+            with st.spinner('Extracting cells and suoja values from all pages...'):
+                # Get all page files
+                page_files = sorted(glob.glob(os.path.join('pages', 'page_*.jpg')))
 
-                if not os.path.exists(page_file):
-                    st.error('Page 4 was not extracted from the PDF')
+                if not page_files:
+                    st.error('No pages were extracted from the PDF')
                 else:
-                    # Extract table cells (with optimizations: in-memory processing)
-                    cell_images = do_extraction(page_file)
-                    num_cells = len(cell_images)
+                    # Process all pages
+                    all_cell_images = []
+                    all_suoja_values = []
+                    total_cells = 0
+                    cell_counter = 0
+                    pages_processed = 0
+                    pages_skipped = 0
 
-                    # Save cells temporarily for comparison
-                    for i, cell_img in enumerate(cell_images):
-                        cell_img.save(os.path.join(cells_dir, f'page_2_cell_{i}.png'))
+                    for page_file in page_files:
+                        page_name = os.path.basename(page_file)
 
-                    # Extract Suoja values (with optimizations: parallel OCR)
-                    suoja_values = extract_suoja_values_from_image(
-                        page_file,
-                        use_ocr=True,
-                        save_crops=False,
-                        parallel=True,
-                    )
+                        try:
+                            # Extract table cells (with optimizations: in-memory processing)
+                            cell_images = do_extraction(page_file)
+
+                            if not cell_images:
+                                print(f'Skipping {page_name}: No components extracted')
+                                pages_skipped += 1
+                                continue
+
+                            num_cells = len(cell_images)
+                            total_cells += num_cells
+
+                            # Save cells temporarily for comparison
+                            for i, cell_img in enumerate(cell_images):
+                                cell_img.save(
+                                    os.path.join(cells_dir, f'cell_{cell_counter}.png')
+                                )
+                                cell_counter += 1
+
+                            all_cell_images.extend(cell_images)
+
+                            # Extract Suoja values (with optimizations: parallel OCR)
+                            suoja_values = extract_suoja_values_from_image(
+                                page_file,
+                                use_ocr=True,
+                                save_crops=False,
+                                parallel=True,
+                            )
+                            all_suoja_values.extend(suoja_values)
+                            pages_processed += 1
+
+                        except Exception as e:
+                            print(f'Error processing {page_name}: {str(e)}')
+                            pages_skipped += 1
+                            continue
+
+                    num_cells = total_cells
+                    suoja_values = all_suoja_values
 
                     # Display results
-                    st.success('Extraction completed')
+                    if pages_skipped > 0:
+                        st.warning(
+                            f'Extraction completed: {pages_processed} page(s) processed, {pages_skipped} page(s) skipped'
+                        )
+                    else:
+                        st.success(
+                            f'Extraction completed from {pages_processed} page(s)'
+                        )
 
                     st.subheader('Results')
-                    col1, col2 = st.columns(2)
+                    col1, col2, col3 = st.columns(3)
                     with col1:
-                        st.metric('Cells extracted', num_cells)
+                        st.metric(
+                            'Pages processed', f'{pages_processed}/{len(page_files)}'
+                        )
                     with col2:
+                        st.metric('Cells extracted', num_cells)
+                    with col3:
                         st.metric('Suoja values extracted', len(suoja_values))
 
                     # Compare components to find unique items

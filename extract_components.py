@@ -107,17 +107,20 @@ def find_component_area(filepath):
             break
 
     if next_bar_x is None:
-        return {
-            'x_start': bar_x,
-            'x_end': None,
-            'y_start': bar_top,
-            'y_end': bar_bottom,
-            'height': bar_bottom - bar_top + 1,
-        }
+        print('Warning: Could not find right boundary of component area')
+        return None
+
+    x_start = bar_x + 30
+    x_end = next_bar_x - 30
+
+    # Validate that x_end is actually greater than x_start
+    if x_end <= x_start:
+        print(f'Warning: Invalid x coordinates (x_start={x_start}, x_end={x_end})')
+        return None
 
     return {
-        'x_start': bar_x + 30,
-        'x_end': next_bar_x - 30,
+        'x_start': x_start,
+        'x_end': x_end,
         'y_start': bar_top,
         'y_end': bar_bottom,
     }
@@ -125,6 +128,17 @@ def find_component_area(filepath):
 
 def export_area_to_analyze(filepath, area, output_path):
     img = Image.open(filepath)
+
+    # Validate coordinates
+    if area['x_end'] is None or area['x_end'] <= area['x_start']:
+        raise ValueError(
+            f'Invalid crop coordinates: x_start={area["x_start"]}, x_end={area["x_end"]}'
+        )
+
+    if area['y_end'] <= area['y_start']:
+        raise ValueError(
+            f'Invalid crop coordinates: y_start={area["y_start"]}, y_end={area["y_end"]}'
+        )
 
     crop_box = (area['x_start'], area['y_start'], area['x_end'], area['y_end'])
 
@@ -222,10 +236,19 @@ def save_components_to_folder(input_path, component_areas, output_folder='compon
 
 
 def do_extraction(image_path, out_dir='extracted_cells'):
-    area = find_component_area(image_path)
-    output_path = os.path.join(out_dir, 'extracted_components.jpg')
-    export_area_to_analyze(image_path, area, output_path)
-    lines = find_non_white_at_fraction(output_path)
-    component_areas, half_height = extract_components(lines, output_path)
-    cropped_images = save_components_to_folder(output_path, component_areas)
-    return cropped_images
+    try:
+        area = find_component_area(image_path)
+
+        if area is None:
+            print(f'Warning: Could not find component area in {image_path}')
+            return []
+
+        output_path = os.path.join(out_dir, 'extracted_components.jpg')
+        export_area_to_analyze(image_path, area, output_path)
+        lines = find_non_white_at_fraction(output_path)
+        component_areas, half_height = extract_components(lines, output_path)
+        cropped_images = save_components_to_folder(output_path, component_areas)
+        return cropped_images
+    except (ValueError, Exception) as e:
+        print(f'Warning: Failed to extract components from {image_path}: {str(e)}')
+        return []

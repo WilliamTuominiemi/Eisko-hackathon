@@ -7,7 +7,7 @@ from PIL import Image
 def convert_pdf_to_images(
     pdf_path: str,
     output_dir: str = 'pages',
-    pages: Optional[List[int]] = [4],
+    pages: Optional[List[int]] = None,
     dpi: int = 300,
     poppler_path: Optional[str] = '/opt/homebrew/bin',
     return_images: bool = False,
@@ -15,10 +15,9 @@ def convert_pdf_to_images(
     if not return_images:
         os.makedirs(output_dir, exist_ok=True)
 
-    # Determine page range
     if pages is None:
-        # Convert all pages
-        first_page = None
+        # Skip first page
+        first_page = 2
         last_page = None
     elif len(pages) == 1:
         # Single page
