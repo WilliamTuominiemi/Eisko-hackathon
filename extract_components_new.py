@@ -147,9 +147,8 @@ def find_non_white_at_fraction(
 ):
     """Find y coordinates with non-white content at a fractional x position."""
     img_array = np.array(Image.open(image_path).convert('L'))
-    height, width = img_array.shape
 
-    x = max(0, min(width - 1, int(width * x_fraction)))
+    x = 5
     non_white_ys = np.where(img_array[:, x] < intensity_threshold)[0]
 
     if non_white_ys.size == 0:
@@ -167,6 +166,62 @@ def find_non_white_at_fraction(
     
     return x, selected_ys
 
+def extract_components(lines, image_path):
+    # Extract just the y-coordinates array from the tuple
+    y_coordinates = lines[1]  # lines[1] contains the array of y-coordinates
+    
+    print(f"Detected lines at y-coordinates: {y_coordinates}")
+    
+    distances = np.diff(y_coordinates)
+    average_distance = np.mean(distances)
+    print(f"Distances between consecutive values: {distances}")
+    print(f"Average distance: {average_distance}")
+
+    half_height = average_distance / 3
+
+    img_array = np.array(Image.open(image_path).convert('L'))
+    height, width = img_array.shape
+
+    component_areas = []
+    for i, y_center in enumerate(y_coordinates):
+        component_area = {
+            'x_start': 0,
+            'x_end': width,
+            'y_start': int(y_center - half_height),
+            'y_end': int(y_center + half_height)
+        }
+        component_areas.append(component_area)
+        print(f"Component {i+1}: {component_area}")
+
+    print(f"\nTotal components: {len(component_areas)}")
+
+    return (component_areas, half_height)
+
+def save_components_to_folder(input_path, component_areas, output_folder="components"):
+    # Create the output folder if it doesn't exist
+    os.makedirs(output_folder, exist_ok=True)
+    
+    # Open the source image
+    img = Image.open(input_path)
+    
+    # Save each component
+    for i, area in enumerate(component_areas, start=1):
+        crop_box = (
+            area['x_start'],
+            area['y_start'],
+            area['x_end'],
+            area['y_end']
+        )
+        cropped = img.crop(crop_box)
+        
+        # Save with numbered filename
+        output_path = os.path.join(output_folder, f"component_{i:02d}.jpg")
+        cropped.save(output_path, "JPEG", quality=95)
+        print(f"Saved: {output_path} (size: {cropped.size[0]} × {cropped.size[1]} pixels)")
+    
+    print(f"\nTotal components saved: {len(component_areas)}")
+    print(f"Location: {output_folder}/")
+
 # Test the function
 
 input_path  = "pages/page_2.jpg"
@@ -176,4 +231,8 @@ print(area)
 export_area_to_analyze(input_path, area)
 
 output_path = "extracted_components.jpg"
-print(find_non_white_at_fraction(output_path))
+lines = find_non_white_at_fraction(output_path)
+
+components = extract_components(lines, output_path)
+
+save_components_to_folder(output_path, components)
