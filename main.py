@@ -1,5 +1,6 @@
 from pdf_to_jpeg import convert_pdf_to_images
 from extract_component_cells import extract_cells_from_image
+from extract_components_new import do_extraction
 from suoja import extract_suoja_values_from_image
 import os
 import glob
@@ -29,8 +30,11 @@ def main():
         print(f'\nProcessing {page_name}...')
 
         # Extract table cells
+        # num_cells = extract_cells_from_image(
+        #     page_file, out_dir=out_dir, prefix=f'page_{page_num}_cell'
+        # )
         num_cells = extract_cells_from_image(
-            page_file, out_dir=out_dir, prefix=f'page_{page_num}_cell'
+            page_file
         )
         print(f'  Extracted {num_cells} cells from {page_name}')
         total_cells += num_cells

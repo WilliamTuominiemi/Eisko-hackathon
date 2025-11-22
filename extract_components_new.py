@@ -123,10 +123,8 @@ def find_component_area(filepath):
         'y_end': bar_bottom,
     }
 
-def export_area_to_analyze(filepath, area):
-    output_path = "extracted_components.jpg"
-
-    img = Image.open(input_path)
+def export_area_to_analyze(filepath, area, output_path):
+    img = Image.open(filepath)
 
     crop_box = (
         area['x_start'],
@@ -222,17 +220,10 @@ def save_components_to_folder(input_path, component_areas, output_folder="compon
     print(f"\nTotal components saved: {len(component_areas)}")
     print(f"Location: {output_folder}/")
 
-# Test the function
-
-input_path  = "pages/page_2.jpg"
-area = find_component_area(input_path)
-print(area)
-
-export_area_to_analyze(input_path, area)
-
-output_path = "extracted_components.jpg"
-lines = find_non_white_at_fraction(output_path)
-
-components = extract_components(lines, output_path)
-
-save_components_to_folder(output_path, components)
+def do_extraction(image_path, out_dir='extracted_cells'):
+    area = find_component_area(image_path)
+    output_path = "/component_list/extracted_components.jpg"
+    export_area_to_analyze(image_path, area, output_path)
+    lines = find_non_white_at_fraction(output_path)
+    components = extract_components(lines, output_path)
+    save_components_to_folder(output_path, components)
