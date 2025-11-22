@@ -14,6 +14,16 @@ st.write('Upload a PDF file to count unique components')
 # File uploader
 uploaded_file = st.file_uploader('Choose a PDF file', type=['pdf'])
 
+# Page selection
+page_number = st.number_input(
+    'Select page to analyze',
+    min_value=1,
+    max_value=100,
+    value=12,
+    step=1,
+    help='Enter the page number you want to analyze from the PDF',
+)
+
 if uploaded_file is not None:
     # Create a temporary file to store the uploaded PDF
     with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_file:
@@ -23,16 +33,18 @@ if uploaded_file is not None:
     # Process button
     if st.button('Analyze switchboard', type='primary'):
         try:
-            with st.spinner('Converting PDF page 2 to image...'):
-                # Convert PDF to images (page 2 only, outputs to 'pages' directory)
-                convert_pdf_to_images(tmp_path)
+            with st.spinner(f'Converting PDF page {page_number} to image...'):
+                # Convert PDF to images (selected page only, outputs to 'pages' directory)
+                convert_pdf_to_images(tmp_path, pages=[page_number])
 
-            with st.spinner('Extracting cells and suoja values from page 2...'):
+            with st.spinner(
+                f'Extracting cells and suoja values from page {page_number}...'
+            ):
                 # Get the page file
-                page_file = os.path.join('pages', 'page_2.jpg')
+                page_file = os.path.join('pages', f'page_{page_number}.jpg')
 
                 if not os.path.exists(page_file):
-                    st.error('Page 2 was not extracted from the PDF')
+                    st.error(f'Page {page_number} was not extracted from the PDF')
                 else:
                     # Extract table cells (with optimizations: in-memory processing)
                     (cell_images, component_with_suoja) = do_extraction(page_file)
@@ -79,10 +91,6 @@ if uploaded_file is not None:
                     else:
                         st.info('No components to compare')
 
-                    # Clean up pages directory
-                    if os.path.exists('pages'):
-                        shutil.rmtree('pages')
-
         except Exception as e:
             st.error(f'Error processing PDF: {str(e)}')
             import traceback
@@ -90,6 +98,11 @@ if uploaded_file is not None:
             st.error(traceback.format_exc())
 
         finally:
+            # Clean up all temporary directories
+            for temp_dir in ['pages', 'components', 'extracted_cells']:
+                if os.path.exists(temp_dir):
+                    shutil.rmtree(temp_dir)
+
             # Clean up the temporary PDF file
             if os.path.exists(tmp_path):
                 os.unlink(tmp_path)

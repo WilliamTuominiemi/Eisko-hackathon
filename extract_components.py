@@ -6,6 +6,12 @@ from OCR import ocr_read_area
 import pytesseract
 
 
+def normalize_suoja_value(suoja_value: str) -> str:
+    if '/' in suoja_value:
+        return suoja_value.split('/')[-1].strip()
+    return suoja_value.strip()
+
+
 def find_component_area(filepath):
     # Load the image and convert to grayscale
     img = Image.open(filepath).convert('L')
@@ -120,7 +126,7 @@ def find_component_area(filepath):
 
     return {
         'x_start': bar_x + 20,
-        'x_end': 995,
+        'x_end': 1020,
         'y_start': bar_top,
         'y_end': bar_bottom,
     }
@@ -353,6 +359,8 @@ def save_components_to_folder(
         }
 
         suoja_value = ocr_read_area(original_image_path, suoja_area)
+        # Normalize suoja value to extract only the part after the slash
+        suoja_value = normalize_suoja_value(suoja_value)
 
         cropped = img.crop(crop_box)
         cropped_images.append(cropped)
