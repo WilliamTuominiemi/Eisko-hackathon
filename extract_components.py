@@ -2,6 +2,7 @@ from PIL import Image
 import numpy as np
 import os
 from typing import Dict, Tuple, List
+from OCR import ocr_read_area
 
 def find_component_area(filepath):
     # Load the image and convert to grayscale
@@ -222,9 +223,9 @@ def find_suoja_cell_start_and_end(crop_offset, y_pos, original_image_path):
             cursor = x
             bars_count += 1
             true_position = x + crop_offset[0]
-            if bars_count == 3: 
+            if bars_count == 2: 
                 suoja_start = true_position
-            if bars_count == 4:
+            if bars_count == 3:
                 suoja_end = true_position
 
     return tuple((suoja_start, suoja_end))
@@ -242,6 +243,9 @@ def save_components_to_folder(input_path, component_areas, original_image_path, 
     component_center_y = component_areas[0]['y_end']
     suoja_edges = find_suoja_cell_start_and_end(crop_offset, component_center_y, original_image_path)
 
+    component_with_suoja: Dict[Image, str] = {}
+
+
     # Save each component
     for i, area in enumerate(component_areas, start=1):
         # print(area)
@@ -250,11 +254,11 @@ def save_components_to_folder(input_path, component_areas, original_image_path, 
         suoja_area = {
             'x_start': suoja_edges[0],
             'x_end': suoja_edges[1],
-            'y_start': area['y_start'],
-            'y_end': area['y_end']
+            'y_start': area['y_start']+crop_offset[1]-25,
+            'y_end': area['y_end']+crop_offset[1]
         }
-
-        print(suoja_area)
+        
+        suoja_value = ocr_read_area(original_image_path, suoja_area)
 
         cropped = img.crop(crop_box)
         cropped_images.append(cropped)
@@ -262,12 +266,17 @@ def save_components_to_folder(input_path, component_areas, original_image_path, 
         # Save with numbered filename
         output_path = os.path.join(output_folder, f'component_{i:02d}.jpg')
         cropped.save(output_path, 'JPEG', quality=95)
+
+        component_with_suoja[output_path] = suoja_value
         # print(
         #     f'Saved: {output_path} (size: {cropped.size[0]} × {cropped.size[1]} pixels)'
         # )
 
     # print(f'\nTotal components saved: {len(component_areas)}')
     # print(f'Location: {output_folder}/')
+
+    print(component_with_suoja)
+
     return cropped_images
 
 
