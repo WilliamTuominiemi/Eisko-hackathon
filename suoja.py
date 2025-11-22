@@ -1,5 +1,6 @@
 from PIL import Image
 import numpy as np
+import cv2
 import os
 
 
@@ -79,11 +80,12 @@ def extract_suoja_numbers(image_path, debug=False, save_crops=False, output_fold
         if y_end - y_start < 15:  # Skip tiny blocks
             continue
         
+        # Use more generous margins - preprocessing will handle border removal
         crop_box = (
-            suoja_left + 2,
-            y_start + 3,  # Skip top border
-            suoja_right - 2,
-            y_end + 5
+            max(0, suoja_left - 5),  # Include some left margin for border detection
+            max(0, y_start - 2),
+            min(width, suoja_right + 5),  # Include some right margin
+            min(height, y_end + 8)
         )
         cropped = img.crop(crop_box)
         y_center = (y_start + y_end) // 2
@@ -96,15 +98,65 @@ def extract_suoja_numbers(image_path, debug=False, save_crops=False, output_fold
     return results
 
 
+def _preprocess_for_ocr(cropped_img):
+    """Preprocess image for better OCR accuracy."""
+    # Convert PIL to numpy array
+    img_array = np.array(cropped_img.convert("L"))
+    
+    # Remove left and right borders more aggressively (table lines)
+    # Detect and crop out vertical lines
+    h, w = img_array.shape
+    
+    # Find leftmost text pixel (skip table border)
+    left_margin = 0
+    for x in range(w):
+        col = img_array[:, x]
+        if np.sum(col < 200) > h * 0.3:  # Vertical line
+            left_margin = x + 1
+        else:
+            break
+    
+    # Find rightmost content
+    right_margin = w
+    for x in range(w - 1, -1, -1):
+        col = img_array[:, x]
+        if np.sum(col < 200) > h * 0.3:  # Vertical line
+            right_margin = x
+        else:
+            break
+    
+    # Crop out borders
+    if left_margin < right_margin:
+        img_array = img_array[:, left_margin:right_margin]
+    
+    # Apply binary threshold for cleaner text
+    _, img_binary = cv2.threshold(img_array, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    
+    # Denoise
+    img_denoised = cv2.fastNlMeansDenoising(img_binary, None, 10, 7, 21)
+    
+    # Convert back to PIL
+    return Image.fromarray(img_denoised)
+
+
 def _try_ocr(cropped_img):
     """Try to extract text from image using OCR."""
     try:
         import pytesseract
+        
+        # Preprocess image for better accuracy
+        processed_img = _preprocess_for_ocr(cropped_img)
+        
+        # Use more aggressive OCR settings for single-line alphanumeric text
         text = pytesseract.image_to_string(
-            cropped_img,
-            config="--psm 7 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
+            processed_img,
+            config="--psm 7 --oem 3 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
         ).strip()
-        return text.replace(" ", "").replace("\n", "").replace("\r", "") or None
+        
+        # Clean up the text
+        cleaned = text.replace(" ", "").replace("\n", "").replace("\r", "")
+        
+        return cleaned or None
     except Exception:
         return None
 
