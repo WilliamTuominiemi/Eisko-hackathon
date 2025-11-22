@@ -1,5 +1,6 @@
 import cv2
 
+
 def are_images_different(
     path_image1: str,
     path_image2: str,
@@ -16,5 +17,6 @@ def are_images_different(
     matches = bf.match(des1, des2)
     similarity = len(matches)
 
+    print(f'Similarity: {similarity}')
 
-    return similarity < 100
+    return similarity < 35

@@ -3,9 +3,9 @@ import tempfile
 import os
 import shutil
 from pdf_to_jpeg import convert_pdf_to_images
-from extract_component_cells import extract_cells_from_image
 from suoja import extract_suoja_values_from_image
 from make_comparisons import compare_components
+from extract_components import do_extraction
 
 st.set_page_config(page_title='PDF Cell & Suoja Extractor', page_icon='📋')
 
@@ -39,9 +39,7 @@ if uploaded_file is not None:
                     st.error('Page 4 was not extracted from the PDF')
                 else:
                     # Extract table cells (with optimizations: in-memory processing)
-                    cell_images = extract_cells_from_image(
-                        page_file, return_images=True
-                    )
+                    cell_images = do_extraction(page_file)
                     num_cells = len(cell_images)
 
                     # Save cells temporarily for comparison
@@ -78,8 +76,6 @@ if uploaded_file is not None:
                             unique_components = compare_components(
                                 suoja_values,
                                 cells_dir=cells_dir,
-                                use_fast_comparison=True,
-                                verbose=False,
                             )
 
                         st.subheader('Unique components')

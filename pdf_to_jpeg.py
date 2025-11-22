@@ -7,24 +7,11 @@ from PIL import Image
 def convert_pdf_to_images(
     pdf_path: str,
     output_dir: str = 'pages',
-    pages: Optional[List[int]] = None,
+    pages: Optional[List[int]] = [4],
     dpi: int = 300,
     poppler_path: Optional[str] = '/opt/homebrew/bin',
     return_images: bool = False,
 ) -> Optional[List[Image.Image]]:
-    """Convert PDF pages to JPEG images.
-
-    Args:
-        pdf_path: Path to PDF file
-        output_dir: Directory to save images (if return_images=False)
-        pages: List of page numbers to convert (1-indexed), or None for all pages
-        dpi: Resolution for conversion (300 is good balance)
-        poppler_path: Path to poppler binaries
-        return_images: If True, return PIL Images instead of saving to disk
-
-    Returns:
-        List of PIL Images if return_images=True, otherwise None
-    """
     if not return_images:
         os.makedirs(output_dir, exist_ok=True)
 

@@ -1,6 +1,5 @@
 from pdf_to_jpeg import convert_pdf_to_images
-from extract_component_cells import extract_cells_from_image
-from extract_components_new import do_extraction
+from extract_components import do_extraction
 from suoja import extract_suoja_values_from_image
 import os
 import glob
@@ -25,7 +24,6 @@ def main():
 
     for page_file in page_files:
         page_name = os.path.basename(page_file)
-        page_num = page_name.replace('page_', '').replace('.jpg', '')
 
         print(f'\nProcessing {page_name}...')
 
@@ -33,9 +31,8 @@ def main():
         # num_cells = extract_cells_from_image(
         #     page_file, out_dir=out_dir, prefix=f'page_{page_num}_cell'
         # )
-        num_cells = extract_cells_from_image(
-            page_file
-        )
+        cell_images = do_extraction(page_file)
+        num_cells = len(cell_images)
         print(f'  Extracted {num_cells} cells from {page_name}')
         total_cells += num_cells
 
