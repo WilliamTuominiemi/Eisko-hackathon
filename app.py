@@ -95,9 +95,9 @@ if uploaded_file is not None:
                                 col1, col2 = st.columns([3, 1])
                                 with col1:
                                     # Display the component image
-                                    image_path = os.path.join(cells_dir, filename)
-                                    if os.path.exists(image_path):
-                                        st.image(image_path, use_container_width=True)
+                                    # filename is already the full path (e.g., 'components/component_01.jpg')
+                                    if os.path.exists(filename):
+                                        st.image(filename, use_container_width=True)
                                 with col2:
                                     st.write(f'**Label:** {label}')
                                     st.write(f'**Count:** {count}')
