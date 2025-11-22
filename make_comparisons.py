@@ -1,4 +1,4 @@
-from compare import compare_images
+from compare import are_images_different
 from typing import Dict, Tuple
 from pathlib import Path
 
@@ -21,7 +21,7 @@ def compare_components(suojas: list[str]):
                 unique_filename = component[0]
                 unique_label = component[1] 
                 
-                image_not_unique = compare_images(str(dir_path / filename), str(dir_path / unique_filename))
+                image_not_unique = are_images_different(str(dir_path / filename), str(dir_path / unique_filename))
 
                 label_not_unique = label == unique_label
 
@@ -33,11 +33,8 @@ def compare_components(suojas: list[str]):
             if isnew:
                 found_components[(filename, label)] = 1                
             
-
     print(found_components)
     return found_components
-
-
 
 #test_suoja = ['C25', 'C16', 'C16', 'C16', 'C16', 'C16', 'C16', 'C16', 'C16', 'C16']
 #compare_components(test_suoja)
