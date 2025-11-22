@@ -3,9 +3,7 @@ import numpy as np
 from collections import Counter
 import os
 
-def find_component_area(filepath):
-    print(filepath)
-    
+def find_component_area(filepath):    
     # Load the image and convert to grayscale
     img = Image.open(filepath).convert('L')
     img_array = np.array(img)
@@ -51,7 +49,6 @@ def find_component_area(filepath):
                     bar_x = bar_start
                     bar_center_x = bar_start + bar_width // 2
                     initial_y = current_y
-                    # print(f"Found thicker bar at x={bar_start} (width={bar_width}) on row {current_y}")
                     break
                 # Reset for next bar
                 bar_start = None
@@ -62,7 +59,6 @@ def find_component_area(filepath):
             bar_x = bar_start
             bar_center_x = bar_start + bar_width // 2
             initial_y = current_y
-            # print(f"Found thicker bar at x={bar_start} (width={bar_width}) on row {current_y}")
         
         if bar_x is not None:
             break
@@ -70,10 +66,6 @@ def find_component_area(filepath):
     if bar_x is None:
         print("No thicker black bar found")
         return None
-    
-    # Assuming img_array is a numpy array (grayscale image), BLACK_THRESHOLD is defined,
-    # initial_y and bar_center_x are the starting point in the middle of the bar,
-    # height = img_array.shape[0]
 
     GAP_TOLERANCE = 1  # Allow this many consecutive non-black pixels before stopping (adjust as needed for noise)
 
@@ -104,9 +96,7 @@ def find_component_area(filepath):
             if gap_count > GAP_TOLERANCE:
                 break
         y += 1
-    
-    # print(f"First bar vertical range: y={bar_top} to y={bar_bottom} (height={bar_bottom - bar_top + 1})")
-    
+        
     # Now scan rightwards from the top position to find the next black line
     next_bar_x = None
     start_x = bar_center_x + 1  # Start after the current bar
@@ -115,11 +105,9 @@ def find_component_area(filepath):
     for x in range(start_x, width):
         if img_array[bar_top, x] < BLACK_THRESHOLD:
             next_bar_x = x
-            # print(f"Found next black line at x={next_bar_x}")
             break
     
     if next_bar_x is None:
-        # print("No next black line found to the right")
         return {
             'x_start': bar_x,
             'x_end': None,
@@ -127,10 +115,7 @@ def find_component_area(filepath):
             'y_end': bar_bottom,
             'height': bar_bottom - bar_top + 1
         }
-  
-    
-    # print(f"Next bar vertical range: y={next_bar_top} to y={next_bar_bottom} (height={next_bar_bottom - next_bar_top + 1})")
-    
+      
     return {
         'x_start': bar_x + 30,
         'x_end': next_bar_x - 30,
@@ -138,11 +123,8 @@ def find_component_area(filepath):
         'y_end': bar_bottom,
     }
 
-def export_area_to_analyze(filepath):
-    area = find_component_area(filepath)
+def export_area_to_analyze(filepath, area):
     output_path = "extracted_components.jpg"
-
-    print(area)
 
     img = Image.open(input_path)
 
@@ -160,7 +142,38 @@ def export_area_to_analyze(filepath):
     print(f"Saved cropped component → {output_path}")
     print(f"Size: {cropped.width} × {cropped.height} pixels")
     
+def find_non_white_at_fraction(
+    image_path, x_fraction=1 / 10, intensity_threshold=250, merge_threshold=5
+):
+    """Find y coordinates with non-white content at a fractional x position."""
+    img_array = np.array(Image.open(image_path).convert('L'))
+    height, width = img_array.shape
+
+    x = max(0, min(width - 1, int(width * x_fraction)))
+    non_white_ys = np.where(img_array[:, x] < intensity_threshold)[0]
+
+    if non_white_ys.size == 0:
+        return x, np.array([], dtype=int)
+    
+    # Compute gaps between consecutive detections
+    gaps = np.diff(non_white_ys)
+    
+    # Find indices where gap > merge_threshold → these mark new clusters
+    split_points = np.where(gaps > merge_threshold)[0] + 1
+    
+    # Split the array into clusters and take the first element of each
+    clusters = np.split(non_white_ys, split_points)
+    selected_ys = np.array([cluster[0] for cluster in clusters], dtype=int)
+    
+    return x, selected_ys
 
 # Test the function
+
 input_path  = "pages/page_2.jpg"
-export_area_to_analyze(input_path)
+area = find_component_area(input_path)
+print(area)
+
+export_area_to_analyze(input_path, area)
+
+output_path = "extracted_components.jpg"
+print(find_non_white_at_fraction(output_path))
