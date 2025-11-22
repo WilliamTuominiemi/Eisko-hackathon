@@ -1,6 +1,5 @@
 from pdf_to_jpeg import convert_pdf_to_images
 from extract_components import do_extraction
-from suoja import extract_suoja_values_from_image
 import os
 import glob
 

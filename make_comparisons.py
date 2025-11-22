@@ -1,10 +1,38 @@
+from typing import Dict, Tuple
 from compare import are_images_different
-from typing import Dict, Tuple, List
 from pathlib import Path
 
 
-def compare_components(component_with_suoja: Dict[str, str]) -> Dict[Tuple[str, str], int]:
+def compare_components(
+    component_with_suoja: Dict[str, str],
+) -> Dict[Tuple[str, str], int]:
     found_components: Dict[Tuple[str, str], int] = {}
+    dir_path = Path('components')
+
+    for component_path, suoja_value in component_with_suoja.items():
+        if len(found_components) == 0:
+            found_components[(component_path, suoja_value)] = 1
+            continue
+
+        is_new = True
+        for component_key in list(found_components.keys()):
+            unique_filename, unique_suoja = component_key
+
+            if suoja_value != unique_suoja:
+                continue
+
+            images_different = are_images_different(component_path, unique_filename)
+
+            images_similar = not images_different
+
+            if images_similar:
+                found_components[(unique_filename, unique_suoja)] += 1
+                is_new = False
+                break
+
+        if is_new:
+            found_components[(component_path, suoja_value)] = 1
+
     # dir_path = Path(cells_dir)
 
     # sorted_files = sorted(dir_path.iterdir())

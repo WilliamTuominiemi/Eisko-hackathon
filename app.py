@@ -3,7 +3,6 @@ import tempfile
 import os
 import shutil
 from pdf_to_jpeg import convert_pdf_to_images
-from suoja import extract_suoja_values_from_image
 from make_comparisons import compare_components
 from extract_components import do_extraction
 
@@ -40,7 +39,7 @@ if uploaded_file is not None:
                 else:
                     # Extract table cells (with optimizations: in-memory processing)
                     (cell_images, component_with_suoja) = do_extraction(page_file)
-                                        
+
                     num_cells = len(cell_images)
 
                     # Save cells temporarily for comparison
@@ -71,12 +70,16 @@ if uploaded_file is not None:
                     #         f'Warning: Number of suoja values ({len(suoja_values)}) does not match number of cells ({num_cells})'
                     #     )
 
+                    print(component_with_suoja)
+                    print(len(component_with_suoja))
+
                     if len(component_with_suoja) and num_cells > 0:
                         with st.spinner('Comparing components...'):
                             # unique_components = compare_components(
                             #     suoja_values,
                             #     cells_dir=cells_dir,
                             # )
+                            print('component_with_suoja')
                             unique_components = compare_components(component_with_suoja)
 
                         st.subheader('Unique components')
