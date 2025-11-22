@@ -29,7 +29,7 @@ if uploaded_file is not None:
 
             with st.spinner('Converting PDF page 4 to image...'):
                 # Convert PDF to images (page 4 only, outputs to 'pages' directory)
-                convert_pdf_to_images(tmp_path, pages=[4])
+                convert_pdf_to_images(tmp_path)
 
             with st.spinner('Extracting cells and suoja values from page 4...'):
                 # Get the page file
@@ -50,7 +50,6 @@ if uploaded_file is not None:
                     suoja_values = extract_suoja_values_from_image(
                         page_file,
                         use_ocr=True,
-                        debug=False,
                         save_crops=False,
                         parallel=True,
                     )
@@ -125,10 +124,9 @@ if uploaded_file is not None:
 else:
     st.info('Upload a PDF file to get started')
 
-    # Show example usage
-    with st.expander('How to use'):
-        st.markdown("""
-        1. Upload a PDF file
-        2. Click "Analyze switchboard"
-        3. View unique components and their counts
-        """)
+    st.markdown("""
+    ### How to use
+    1. Upload a PDF file
+    2. Click "Analyze switchboard"
+    3. View unique components and their counts
+    """)

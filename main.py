@@ -9,7 +9,7 @@ def main():
     print('Converting PDF to images...')
     convert_pdf_to_images('example.pdf')
 
-    print('\nExtracting cells and Suoja values from each page...')
+    print('\nExtracting cells and suoja values from each page...')
     out_dir = 'extracted_cells'
     page_files = sorted(glob.glob(os.path.join('pages', 'page_*.jpg')))
 
@@ -27,26 +27,19 @@ def main():
 
         print(f'\nProcessing {page_name}...')
 
-        # Extract table cells
-        # num_cells = extract_cells_from_image(
-        #     page_file, out_dir=out_dir, prefix=f'page_{page_num}_cell'
-        # )
         cell_images = do_extraction(page_file)
         num_cells = len(cell_images)
         print(f'  Extracted {num_cells} cells from {page_name}')
         total_cells += num_cells
 
-        # Extract Suoja values in order
         suoja_values = extract_suoja_values_from_image(
             page_file,
             use_ocr=True,
-            debug=True,  # Enable debug to see what's happening
             save_crops=True,
             output_folder='suoja_extracts',
         )
-        print(f'  Extracted {len(suoja_values)} Suoja values: {suoja_values}')
+        print(f'  Extracted {len(suoja_values)} suoja values: {suoja_values}')
 
-        # Add to cumulative list (maintains order across pages)
         all_suoja_values.extend(suoja_values)
 
     print(f'\n{"=" * 60}')

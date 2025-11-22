@@ -7,32 +7,11 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 
-def _merge_consecutive_positions(positions, gap_threshold=2):
-    """Merge consecutive positions into single representative positions."""
-    if not positions:
-        return []
-
-    merged = []
-    group_start = positions[0]
-    last_pos = positions[0]
-
-    for pos in positions[1:]:
-        if pos - last_pos > gap_threshold:
-            merged.append((group_start + last_pos) // 2)
-            group_start = pos
-        last_pos = pos
-
-    merged.append((group_start + last_pos) // 2)
-    return merged
-
-
 def _find_suoja_column_bounds(width):
-    """Find the Suoja column boundaries based on image width."""
     return int(width * 0.695), int(width * 0.76)
 
 
 def _group_rows_into_blocks(row_ys, gap_threshold=20):
-    """Group consecutive row positions into text blocks."""
     if not row_ys:
         return []
 
@@ -50,10 +29,7 @@ def _group_rows_into_blocks(row_ys, gap_threshold=20):
     return blocks
 
 
-def extract_suoja_numbers(
-    image_path, debug=False, save_crops=False, output_folder='suoja_extracts'
-):
-    """Extract Suoja numbers from electrical component table."""
+def extract_suoja_numbers(image_path, save_crops=False, output_folder='suoja_extracts'):
     if save_crops:
         os.makedirs(output_folder, exist_ok=True)
 
@@ -106,7 +82,6 @@ def extract_suoja_numbers(
 
 
 def _preprocess_for_ocr(cropped_img):
-    """Preprocess image for better OCR accuracy."""
     # Convert PIL to numpy array
     img_array = np.array(cropped_img.convert('L'))
 
@@ -149,7 +124,6 @@ def _preprocess_for_ocr(cropped_img):
 
 
 def _try_ocr(cropped_img, config: Optional[str] = None):
-    """Try to extract text from image using OCR."""
     try:
         import pytesseract
 
@@ -175,7 +149,6 @@ def _try_ocr(cropped_img, config: Optional[str] = None):
 
 
 def _try_ocr_batch_worker(args):
-    """Worker function for parallel OCR processing."""
     idx, y_center, cropped_img = args
     result = _try_ocr(cropped_img)
     return idx, result
@@ -184,27 +157,11 @@ def _try_ocr_batch_worker(args):
 def extract_suoja_values_from_image(
     image_path: Union[str, Path],
     use_ocr: bool = True,
-    debug: bool = False,
     save_crops: bool = False,
     output_folder: str = 'suoja_extracts',
     parallel: bool = True,
     max_workers: Optional[int] = None,
 ) -> List[Optional[str]]:
-    """
-    Extract all Suoja values from a JPG image in order (top to bottom).
-
-    Args:
-        image_path: Path to the image file
-        use_ocr: Whether to perform OCR (if False, returns list of None)
-        debug: Print debug information
-        save_crops: Save cropped regions to disk
-        output_folder: Folder for saved crops
-        parallel: Use parallel OCR processing (faster for many values)
-        max_workers: Number of parallel workers (None = auto)
-
-    Returns:
-        List of strings (or None if OCR fails for that value)
-    """
     regions = extract_suoja_numbers(
         image_path, save_crops=save_crops, output_folder=output_folder
     )
@@ -228,38 +185,20 @@ def extract_suoja_values_from_image(
         results.sort(key=lambda x: x[0])
         values = [result for _, result in results]
 
-    if debug:
-        print(f'  Extracted {len(values)} Suoja values: {values}')
-
     return values
 
 
 def extract_suoja_values_batch(
     image_paths: List[Union[str, Path]],
     use_ocr: bool = True,
-    debug: bool = False,
     save_crops: bool = False,
     output_folder: str = 'suoja_extracts',
     parallel: bool = True,
 ) -> List[List[Optional[str]]]:
-    """
-    Extract Suoja values from multiple images in parallel.
-
-    Args:
-        image_paths: List of image file paths
-        use_ocr: Whether to perform OCR
-        debug: Print debug information
-        save_crops: Save cropped regions
-        output_folder: Folder for saved crops
-        parallel: Use parallel processing
-
-    Returns:
-        List of lists, each containing Suoja values for one image
-    """
     if not parallel or len(image_paths) == 1:
         return [
             extract_suoja_values_from_image(
-                img_path, use_ocr, debug, save_crops, output_folder, parallel=False
+                img_path, use_ocr, save_crops, output_folder, parallel=False
             )
             for img_path in image_paths
         ]
@@ -271,7 +210,7 @@ def extract_suoja_values_batch(
         results = list(
             executor.map(
                 lambda p: extract_suoja_values_from_image(
-                    p, use_ocr, debug, save_crops, output_folder, parallel=True
+                    p, use_ocr, save_crops, output_folder, parallel=True
                 ),
                 image_paths,
             )
