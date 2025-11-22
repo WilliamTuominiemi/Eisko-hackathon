@@ -3,7 +3,6 @@ import tempfile
 import os
 import shutil
 from pdf_to_jpeg import convert_pdf_to_images
-from suoja import extract_suoja_values_from_image
 from make_comparisons import compare_components
 from extract_components import do_extraction
 
@@ -39,7 +38,8 @@ if uploaded_file is not None:
                     st.error('Page 4 was not extracted from the PDF')
                 else:
                     # Extract table cells (with optimizations: in-memory processing)
-                    cell_images = do_extraction(page_file)
+                    (cell_images, component_with_suoja) = do_extraction(page_file)
+
                     num_cells = len(cell_images)
 
                     # Save cells temporarily for comparison
@@ -47,12 +47,12 @@ if uploaded_file is not None:
                         cell_img.save(os.path.join(cells_dir, f'page_2_cell_{i}.png'))
 
                     # Extract Suoja values (with optimizations: parallel OCR)
-                    suoja_values = extract_suoja_values_from_image(
-                        page_file,
-                        use_ocr=True,
-                        save_crops=False,
-                        parallel=True,
-                    )
+                    # suoja_values = extract_suoja_values_from_image(
+                    #     page_file,
+                    #     use_ocr=True,
+                    #     save_crops=False,
+                    #     parallel=True,
+                    # )
 
                     # Display results
                     st.success('Extraction completed')
@@ -61,21 +61,26 @@ if uploaded_file is not None:
                     col1, col2 = st.columns(2)
                     with col1:
                         st.metric('Cells extracted', num_cells)
-                    with col2:
-                        st.metric('Suoja values extracted', len(suoja_values))
+                    # with col2:
+                    #     st.metric('Suoja values extracted', len(suoja_values))
 
                     # Compare components to find unique items
-                    if len(suoja_values) != num_cells:
-                        st.warning(
-                            f'Warning: Number of suoja values ({len(suoja_values)}) does not match number of cells ({num_cells})'
-                        )
+                    # if len(suoja_values) != num_cells:
+                    #     st.warning(
+                    #         f'Warning: Number of suoja values ({len(suoja_values)}) does not match number of cells ({num_cells})'
+                    #     )
 
-                    if suoja_values and num_cells > 0:
+                    print(component_with_suoja)
+                    print(len(component_with_suoja))
+
+                    if len(component_with_suoja) and num_cells > 0:
                         with st.spinner('Comparing components...'):
-                            unique_components = compare_components(
-                                suoja_values,
-                                cells_dir=cells_dir,
-                            )
+                            # unique_components = compare_components(
+                            #     suoja_values,
+                            #     cells_dir=cells_dir,
+                            # )
+                            print('component_with_suoja')
+                            unique_components = compare_components(component_with_suoja)
 
                         st.subheader('Unique components')
                         st.metric('Total unique components', len(unique_components))
@@ -90,9 +95,9 @@ if uploaded_file is not None:
                                 col1, col2 = st.columns([3, 1])
                                 with col1:
                                     # Display the component image
-                                    image_path = os.path.join(cells_dir, filename)
-                                    if os.path.exists(image_path):
-                                        st.image(image_path, use_container_width=True)
+                                    # filename is already the full path (e.g., 'components/component_01.jpg')
+                                    if os.path.exists(filename):
+                                        st.image(filename, use_container_width=True)
                                 with col2:
                                     st.write(f'**Label:** {label}')
                                     st.write(f'**Count:** {count}')

@@ -4,6 +4,9 @@ install:
 run:
 	uv run main.py
 
+test:
+	uv run compare.py
+
 start:
 	uv run streamlit run app.py
 
