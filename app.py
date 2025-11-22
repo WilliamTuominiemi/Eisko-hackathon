@@ -7,7 +7,7 @@ from suoja import extract_suoja_values_from_image
 from make_comparisons import compare_components
 from extract_components import do_extraction
 
-st.set_page_config(page_title='PDF Cell & Suoja Extractor', page_icon='📋')
+st.set_page_config(page_title='Component counter', page_icon='📋')
 
 st.title('Switchboard component counter')
 st.write('Upload a PDF file to count unique components')
