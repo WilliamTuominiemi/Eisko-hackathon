@@ -1,8 +1,10 @@
 install:
-	uv venv --clear
 	uv pip install -r requirements.txt
 
 run:
 	uv run main.py
 
-.PHONY: .install .run
+streamlit:
+	uv run streamlit run streamlit_app.py
+
+.PHONY: install run streamlit

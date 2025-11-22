@@ -1,1 +1,8 @@
+.venv
 venv
+.vscode
+.cursor
+*.jpg
+*.png
+__pycache__
+ruff.toml
