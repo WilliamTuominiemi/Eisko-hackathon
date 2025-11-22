@@ -26,31 +26,35 @@ if uploaded_file is not None:
         try:
             # Create temporary directories for processing
             cells_dir = tempfile.mkdtemp()
-            suoja_dir = tempfile.mkdtemp()
 
             with st.spinner('Converting PDF page 4 to image...'):
                 # Convert PDF to images (page 4 only, outputs to 'pages' directory)
-                convert_pdf_to_images(tmp_path)
+                convert_pdf_to_images(tmp_path, pages=[4])
 
             with st.spinner('Extracting cells and suoja values from page 4...'):
-                # Get the page file (should be page_2.jpg based on the original code)
-                page_file = os.path.join('pages', 'page_2.jpg')
+                # Get the page file
+                page_file = os.path.join('pages', 'page_4.jpg')
 
                 if not os.path.exists(page_file):
                     st.error('Page 4 was not extracted from the PDF')
                 else:
-                    # Extract table cells
-                    num_cells = extract_cells_from_image(
-                        page_file, out_dir=cells_dir, prefix='page_2_cell'
+                    # Extract table cells (with optimizations: in-memory processing)
+                    cell_images = extract_cells_from_image(
+                        page_file, return_images=True
                     )
+                    num_cells = len(cell_images)
 
-                    # Extract Suoja values
+                    # Save cells temporarily for comparison
+                    for i, cell_img in enumerate(cell_images):
+                        cell_img.save(os.path.join(cells_dir, f'page_2_cell_{i}.png'))
+
+                    # Extract Suoja values (with optimizations: parallel OCR)
                     suoja_values = extract_suoja_values_from_image(
                         page_file,
                         use_ocr=True,
                         debug=False,
-                        save_crops=True,
-                        output_folder=suoja_dir,
+                        save_crops=False,
+                        parallel=True,
                     )
 
                     # Display results
@@ -72,7 +76,10 @@ if uploaded_file is not None:
                     if suoja_values and num_cells > 0:
                         with st.spinner('Comparing components...'):
                             unique_components = compare_components(
-                                suoja_values, cells_dir=cells_dir
+                                suoja_values,
+                                cells_dir=cells_dir,
+                                use_fast_comparison=True,
+                                verbose=False,
                             )
 
                         st.subheader('Unique components')
@@ -100,7 +107,6 @@ if uploaded_file is not None:
 
                     # Clean up temporary directories
                     shutil.rmtree(cells_dir)
-                    shutil.rmtree(suoja_dir)
                     # Clean up pages directory
                     if os.path.exists('pages'):
                         shutil.rmtree('pages')

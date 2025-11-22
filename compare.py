@@ -1,5 +1,33 @@
 import numpy as np
 from PIL import Image
+import imagehash
+from typing import Union
+from pathlib import Path
+
+
+def compute_image_hash(
+    image: Union[str, Path, Image.Image], hash_size: int = 16
+) -> imagehash.ImageHash:
+    if isinstance(image, (str, Path)):
+        img = Image.open(image)
+    else:
+        img = image
+
+    # Use average hash for speed, or phash for better accuracy
+    return imagehash.average_hash(img, hash_size=hash_size)
+
+
+def are_images_similar_hash(
+    image1: Union[str, Path, Image.Image],
+    image2: Union[str, Path, Image.Image],
+    hash_size: int = 16,
+    max_hash_diff: int = 5,
+) -> bool:
+    hash1 = compute_image_hash(image1, hash_size)
+    hash2 = compute_image_hash(image2, hash_size)
+
+    diff = hash1 - hash2  # Hamming distance
+    return diff <= max_hash_diff
 
 
 def are_images_different(
@@ -9,6 +37,7 @@ def are_images_different(
     diff_ratio_threshold: float = 0.01,
     allow_size_diff: bool = True,
     max_size_diff: int = 5,
+    verbose: bool = False,
 ) -> bool:
     img1 = Image.open(path_image1)
     img2 = Image.open(path_image2)
@@ -44,17 +73,12 @@ def are_images_different(
 
     diff_ratio = num_diff_pixels / total_pixels
 
-    print(
-        f'Size diff: {abs(img1.size[0] - img2.size[0])}x{abs(img1.size[1] - img2.size[1])}'
-    )
-    print(
-        f'Pixels with diff > {pixel_threshold}: {num_diff_pixels}/{total_pixels} ({100 * diff_ratio:.2f}%)'
-    )
+    if verbose:
+        print(
+            f'Size diff: {abs(img1.size[0] - img2.size[0])}x{abs(img1.size[1] - img2.size[1])}'
+        )
+        print(
+            f'Pixels with diff > {pixel_threshold}: {num_diff_pixels}/{total_pixels} ({100 * diff_ratio:.2f}%)'
+        )
 
     return diff_ratio > diff_ratio_threshold
-
-
-img1 = 'extracted_cells/page_2_cell_0_y390_l206_t308_r1027_b472.png'
-img2 = 'extracted_cells/page_2_cell_2_y720_l206_t637_r1027_b803.png'
-
-print('Different images:', are_images_different(img1, img2))

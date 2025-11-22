@@ -2,6 +2,8 @@ from PIL import Image
 import numpy as np
 from collections import Counter
 import os
+from typing import List, Optional, Union
+from pathlib import Path
 
 
 def _merge_positions(positions, threshold):
@@ -194,23 +196,39 @@ def save_squares(squares, image_path, out_dir='extracted_cells', prefix='cell'):
 
 
 def extract_cells_from_image(
-    image_path,
-    out_dir='extracted_cells',
-    x_fraction=1 / 5,
-    intensity_threshold=250,
-    merge_threshold=3,
-    wall_height=10,
-    width_tolerance=5,
-    prefix='cell',
-):
-    """Extract component cells from an image and save them to a directory."""
+    image_path: Union[str, Path],
+    out_dir: Optional[str] = 'extracted_cells',
+    x_fraction: float = 1 / 5,
+    intensity_threshold: int = 250,
+    merge_threshold: int = 3,
+    wall_height: int = 10,
+    width_tolerance: int = 5,
+    prefix: str = 'cell',
+    return_images: bool = False,
+) -> Union[int, List[Image.Image]]:
+    """Extract component cells from an image.
+
+    Args:
+        image_path: Path to image file
+        out_dir: Directory to save cells (None to skip saving)
+        x_fraction: Fractional x position to scan for cells
+        intensity_threshold: Pixel intensity threshold for detection
+        merge_threshold: Threshold for merging nearby positions
+        wall_height: Height for wall detection
+        width_tolerance: Tolerance for width filtering
+        prefix: Prefix for saved filenames
+        return_images: If True, return list of PIL Images instead of saving
+
+    Returns:
+        Number of cells extracted (if return_images=False) or list of PIL Images
+    """
     # Find cell centers
     x_pos, y_coords = find_non_white_at_fraction(
         image_path, x_fraction, intensity_threshold, merge_threshold
     )
 
     if len(y_coords) == 0:
-        return 0
+        return [] if return_images else 0
 
     # Find cell boundaries
     cell_walls = find_cell_walls(
@@ -225,10 +243,65 @@ def extract_cells_from_image(
     filtered_cells = filter_by_most_common_width(cell_walls, y_coords, width_tolerance)
 
     if not filtered_cells:
-        return 0
+        return [] if return_images else 0
 
-    # Extract and save cells
+    # Extract cells
     squares = extract_cell_squares(filtered_cells, image_path)
-    saved = save_squares(squares, image_path, out_dir, prefix)
 
-    return len(saved)
+    if return_images:
+        # Return PIL Images directly without saving
+        img = Image.open(image_path).convert('RGB')
+        img_w, img_h = img.size
+
+        cells = []
+        for y, left, top, right, bottom in squares:
+            if None in (left, right, top, bottom):
+                continue
+
+            left, top = max(0, int(left)), max(0, int(top))
+            right, bottom = min(img_w, int(right) + 1), min(img_h, int(bottom) + 1)
+
+            if right <= left or bottom <= top:
+                continue
+
+            cells.append(img.crop((left, top, right, bottom)))
+
+        return cells
+    else:
+        # Save to disk
+        if out_dir is None:
+            out_dir = 'extracted_cells'
+        saved = save_squares(squares, image_path, out_dir, prefix)
+        return len(saved)
+
+
+def extract_cells_batch(
+    image_paths: List[Union[str, Path]],
+    out_dir: str = 'extracted_cells',
+    return_images: bool = False,
+    **kwargs,
+) -> Union[List[int], List[List[Image.Image]]]:
+    """Extract cells from multiple images.
+
+    Args:
+        image_paths: List of image file paths
+        out_dir: Base directory for output
+        return_images: Return PIL Images instead of saving
+        **kwargs: Additional arguments passed to extract_cells_from_image
+
+    Returns:
+        List of cell counts or list of lists of PIL Images
+    """
+    results = []
+    for i, img_path in enumerate(image_paths):
+        # Create separate output directory for each image if saving
+        if not return_images:
+            img_out_dir = os.path.join(out_dir, f'page_{i}')
+            result = extract_cells_from_image(
+                img_path, out_dir=img_out_dir, return_images=False, **kwargs
+            )
+        else:
+            result = extract_cells_from_image(img_path, return_images=True, **kwargs)
+        results.append(result)
+
+    return results
