@@ -118,8 +118,8 @@ def find_component_area(filepath):
         }
 
     return {
-        'x_start': bar_x + 30,
-        'x_end': next_bar_x - 30,
+        'x_start': bar_x + 20,
+        'x_end': 995,
         'y_start': bar_top,
         'y_end': bar_bottom,
     }
@@ -127,6 +127,9 @@ def find_component_area(filepath):
 
 def export_area_to_analyze(filepath, area, output_path):
     img = Image.open(filepath)
+
+    #{'x_start': 225, 'x_end': 997, 'y_start': 320, 'y_end': 2103}
+    print(area)
 
     crop_box = (area['x_start'], area['y_start'], area['x_end'], area['y_end'])
 
@@ -298,3 +301,5 @@ def do_extraction(image_path, out_dir='extracted_cells'):
     return save_components_to_folder(
         output_path, component_areas, image_path, crop_offset
     )
+
+do_extraction("pages/page_4.jpg")
