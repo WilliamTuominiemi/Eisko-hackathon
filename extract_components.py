@@ -275,9 +275,7 @@ def save_components_to_folder(input_path, component_areas, original_image_path, 
     # print(f'\nTotal components saved: {len(component_areas)}')
     # print(f'Location: {output_folder}/')
 
-    print(component_with_suoja)
-
-    return cropped_images
+    return tuple((cropped_images, component_with_suoja))
 
 
 def do_extraction(image_path, out_dir='extracted_cells'):
@@ -287,7 +285,4 @@ def do_extraction(image_path, out_dir='extracted_cells'):
     export_area_to_analyze(image_path, area, output_path)
     lines = find_non_white_at_fraction(output_path)
     component_areas, half_height = extract_components(lines, output_path)
-    cropped_images = save_components_to_folder(output_path, component_areas, image_path, crop_offset)
-    return cropped_images
-
-do_extraction("pages/page_4.jpg")
+    return save_components_to_folder(output_path, component_areas, image_path, crop_offset)

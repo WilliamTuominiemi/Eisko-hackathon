@@ -39,7 +39,8 @@ if uploaded_file is not None:
                     st.error('Page 4 was not extracted from the PDF')
                 else:
                     # Extract table cells (with optimizations: in-memory processing)
-                    cell_images = do_extraction(page_file)
+                    (cell_images, component_with_suoja) = do_extraction(page_file)
+                                        
                     num_cells = len(cell_images)
 
                     # Save cells temporarily for comparison
@@ -47,12 +48,12 @@ if uploaded_file is not None:
                         cell_img.save(os.path.join(cells_dir, f'page_2_cell_{i}.png'))
 
                     # Extract Suoja values (with optimizations: parallel OCR)
-                    suoja_values = extract_suoja_values_from_image(
-                        page_file,
-                        use_ocr=True,
-                        save_crops=False,
-                        parallel=True,
-                    )
+                    # suoja_values = extract_suoja_values_from_image(
+                    #     page_file,
+                    #     use_ocr=True,
+                    #     save_crops=False,
+                    #     parallel=True,
+                    # )
 
                     # Display results
                     st.success('Extraction completed')
@@ -61,21 +62,22 @@ if uploaded_file is not None:
                     col1, col2 = st.columns(2)
                     with col1:
                         st.metric('Cells extracted', num_cells)
-                    with col2:
-                        st.metric('Suoja values extracted', len(suoja_values))
+                    # with col2:
+                    #     st.metric('Suoja values extracted', len(suoja_values))
 
                     # Compare components to find unique items
-                    if len(suoja_values) != num_cells:
-                        st.warning(
-                            f'Warning: Number of suoja values ({len(suoja_values)}) does not match number of cells ({num_cells})'
-                        )
+                    # if len(suoja_values) != num_cells:
+                    #     st.warning(
+                    #         f'Warning: Number of suoja values ({len(suoja_values)}) does not match number of cells ({num_cells})'
+                    #     )
 
-                    if suoja_values and num_cells > 0:
+                    if len(component_with_suoja) and num_cells > 0:
                         with st.spinner('Comparing components...'):
-                            unique_components = compare_components(
-                                suoja_values,
-                                cells_dir=cells_dir,
-                            )
+                            # unique_components = compare_components(
+                            #     suoja_values,
+                            #     cells_dir=cells_dir,
+                            # )
+                            unique_components = compare_components(component_with_suoja)
 
                         st.subheader('Unique components')
                         st.metric('Total unique components', len(unique_components))

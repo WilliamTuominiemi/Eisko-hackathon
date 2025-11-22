@@ -27,20 +27,20 @@ def main():
 
         print(f'\nProcessing {page_name}...')
 
-        cell_images = do_extraction(page_file)
+        (cell_images, component_with_suoja) = do_extraction(page_file)
         num_cells = len(cell_images)
         print(f'  Extracted {num_cells} cells from {page_name}')
         total_cells += num_cells
 
-        suoja_values = extract_suoja_values_from_image(
-            page_file,
-            use_ocr=True,
-            save_crops=True,
-            output_folder='suoja_extracts',
-        )
-        print(f'  Extracted {len(suoja_values)} suoja values: {suoja_values}')
+        # suoja_values = extract_suoja_values_from_image(
+        #     page_file,
+        #     use_ocr=True,
+        #     save_crops=True,
+        #     output_folder='suoja_extracts',
+        # )
+        # print(f'  Extracted {len(suoja_values)} suoja values: {suoja_values}')
 
-        all_suoja_values.extend(suoja_values)
+        # all_suoja_values.extend(suoja_values)
 
     print(f'\n{"=" * 60}')
     print('SUMMARY:')
