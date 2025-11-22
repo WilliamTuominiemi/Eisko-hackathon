@@ -148,8 +148,19 @@ def find_non_white_at_fraction(
     """Find y coordinates with non-white content at a fractional x position."""
     img_array = np.array(Image.open(image_path).convert('L'))
 
+    img = Image.open(image_path).convert('L')
+    img_array = np.array(img)
+    height, width = img_array.shape
+
     x = 5
+    antiX = width - 5
     non_white_ys = np.where(img_array[:, x] < intensity_threshold)[0]
+    non_white_ys_rev = np.where(img_array[:, antiX] < intensity_threshold)[0]
+
+    combined_non_whites = np.unique(np.concatenate((non_white_ys, non_white_ys_rev)))
+    non_white_ys = combined_non_whites  # use combined results for downstream processing
+
+    print(non_white_ys)
 
     if non_white_ys.size == 0:
         return x, np.array([], dtype=int)
@@ -302,4 +313,4 @@ def do_extraction(image_path, out_dir='extracted_cells'):
         output_path, component_areas, image_path, crop_offset
     )
 
-do_extraction("pages/page_4.jpg")
+# do_extraction("pages/page_2.jpg")
