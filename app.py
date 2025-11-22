@@ -1,0 +1,132 @@
+import streamlit as st
+import tempfile
+import os
+import shutil
+from pdf_to_jpeg import convert_pdf_to_images
+from extract_component_cells import extract_cells_from_image
+from suoja import extract_suoja_values_from_image
+from make_comparisons import compare_components
+
+st.set_page_config(page_title='PDF Cell & Suoja Extractor', page_icon='📋')
+
+st.title('Switchboard component counter')
+st.write('Upload a PDF file to count unique components')
+
+# File uploader
+uploaded_file = st.file_uploader('Choose a PDF file', type=['pdf'])
+
+if uploaded_file is not None:
+    # Create a temporary file to store the uploaded PDF
+    with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_file:
+        tmp_file.write(uploaded_file.read())
+        tmp_path = tmp_file.name
+
+    # Process button
+    if st.button('Analyze switchboard', type='primary'):
+        try:
+            # Create temporary directories for processing
+            cells_dir = tempfile.mkdtemp()
+            suoja_dir = tempfile.mkdtemp()
+
+            with st.spinner('Converting PDF page 4 to image...'):
+                # Convert PDF to images (page 4 only, outputs to 'pages' directory)
+                convert_pdf_to_images(tmp_path)
+
+            with st.spinner('Extracting cells and suoja values from page 4...'):
+                # Get the page file (should be page_2.jpg based on the original code)
+                page_file = os.path.join('pages', 'page_2.jpg')
+
+                if not os.path.exists(page_file):
+                    st.error('Page 4 was not extracted from the PDF')
+                else:
+                    # Extract table cells
+                    num_cells = extract_cells_from_image(
+                        page_file, out_dir=cells_dir, prefix='page_2_cell'
+                    )
+
+                    # Extract Suoja values
+                    suoja_values = extract_suoja_values_from_image(
+                        page_file,
+                        use_ocr=True,
+                        debug=False,
+                        save_crops=True,
+                        output_folder=suoja_dir,
+                    )
+
+                    # Display results
+                    st.success('Extraction completed')
+
+                    st.subheader('Results')
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.metric('Cells extracted', num_cells)
+                    with col2:
+                        st.metric('Suoja values extracted', len(suoja_values))
+
+                    # Compare components to find unique items
+                    if len(suoja_values) != num_cells:
+                        st.warning(
+                            f'Warning: Number of suoja values ({len(suoja_values)}) does not match number of cells ({num_cells})'
+                        )
+
+                    if suoja_values and num_cells > 0:
+                        with st.spinner('Comparing components...'):
+                            unique_components = compare_components(
+                                suoja_values, cells_dir=cells_dir
+                            )
+
+                        st.subheader('Unique components')
+                        st.metric('Total unique components', len(unique_components))
+
+                        # Display unique components with images
+                        if unique_components:
+                            for (filename, label), count in sorted(
+                                unique_components.items(),
+                                key=lambda x: x[1],
+                                reverse=True,
+                            ):
+                                col1, col2 = st.columns([3, 1])
+                                with col1:
+                                    # Display the component image
+                                    image_path = os.path.join(cells_dir, filename)
+                                    if os.path.exists(image_path):
+                                        st.image(image_path, use_container_width=True)
+                                with col2:
+                                    st.write(f'**Label:** {label}')
+                                    st.write(f'**Count:** {count}')
+                                st.divider()
+                    else:
+                        st.info('No components to compare')
+
+                    # Clean up temporary directories
+                    shutil.rmtree(cells_dir)
+                    shutil.rmtree(suoja_dir)
+                    # Clean up pages directory
+                    if os.path.exists('pages'):
+                        shutil.rmtree('pages')
+
+        except Exception as e:
+            st.error(f'Error processing PDF: {str(e)}')
+            import traceback
+
+            st.error(traceback.format_exc())
+
+        finally:
+            # Clean up the temporary PDF file
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+    else:
+        # Clean up if button not pressed
+        if os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+
+else:
+    st.info('Upload a PDF file to get started')
+
+    # Show example usage
+    with st.expander('How to use'):
+        st.markdown("""
+        1. Upload a PDF file
+        2. Click "Analyze switchboard"
+        3. View unique components and their counts
+        """)

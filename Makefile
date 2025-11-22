@@ -4,7 +4,7 @@ install:
 run:
 	uv run main.py
 
-streamlit:
-	uv run streamlit run streamlit_app.py
+app:
+	uv run streamlit run app.py
 
-.PHONY: install run streamlit
+.PHONY: install run app
