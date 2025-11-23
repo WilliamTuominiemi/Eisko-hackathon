@@ -8,6 +8,26 @@ from extract_components import do_extraction
 
 st.set_page_config(page_title='Component counter', page_icon='📋')
 
+# Custom CSS for wider container and reduced padding
+st.markdown(
+    """
+<style>
+    .block-container {
+        max-width: 1400px;
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+    }
+    div[data-testid="stHorizontalBlock"] {
+        gap: 0.5rem;
+    }
+    div[data-testid="column"] {
+        padding: 0.5rem;
+    }
+</style>
+""",
+    unsafe_allow_html=True,
+)
+
 st.title('Switchboard component counter')
 st.write('Upload a PDF file to count unique components')
 
@@ -21,7 +41,6 @@ page_number = st.number_input(
     max_value=100,
     value=12,
     step=1,
-    help='Enter the page number you want to analyze from the PDF',
 )
 
 if uploaded_file is not None:
@@ -37,9 +56,7 @@ if uploaded_file is not None:
                 # Convert PDF to images (selected page only, outputs to 'pages' directory)
                 convert_pdf_to_images(tmp_path, pages=[page_number])
 
-            with st.spinner(
-                f'Extracting cells and suoja values from page {page_number}...'
-            ):
+            with st.spinner(f'Extracting components from page {page_number}...'):
                 # Get the page file
                 page_file = os.path.join('pages', f'page_{page_number}.jpg')
 
@@ -54,13 +71,6 @@ if uploaded_file is not None:
                     # Display results
                     st.success('Extraction completed')
 
-                    st.subheader('Results')
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        st.metric('Cells extracted', num_cells)
-                    with col2:
-                        st.metric('Components with suoja', len(component_with_suoja))
-
                     print(component_with_suoja)
                     print(len(component_with_suoja))
 
@@ -68,26 +78,50 @@ if uploaded_file is not None:
                         with st.spinner('Comparing components...'):
                             unique_components = compare_components(component_with_suoja)
 
-                        st.subheader('Unique components')
-                        st.metric('Total unique components', len(unique_components))
+                        st.subheader('Results')
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.metric('Total components', num_cells)
+                        with col2:
+                            st.metric('Total unique components', len(unique_components))
 
-                        # Display unique components with images
+                        # Display unique components with images in table format
                         if unique_components:
+                            # Table header
+                            header_col1, header_col2, header_col3 = st.columns(
+                                [3, 1, 1]
+                            )
+                            with header_col1:
+                                st.markdown('**Component**')
+                            with header_col2:
+                                st.markdown('**Suoja**')
+                            with header_col3:
+                                st.markdown('**Count**')
+                            st.markdown('---')
+
+                            # Table rows
                             for (filename, label), count in sorted(
                                 unique_components.items(),
                                 key=lambda x: x[1],
                                 reverse=True,
                             ):
-                                col1, col2 = st.columns([3, 1])
+                                col1, col2, col3 = st.columns([3, 1, 1])
                                 with col1:
                                     # Display the component image
                                     # filename is already the full path (e.g., 'components/component_01.jpg')
                                     if os.path.exists(filename):
                                         st.image(filename, use_container_width=True)
                                 with col2:
-                                    st.write(f'**Label:** {label}')
-                                    st.write(f'**Count:** {count}')
-                                st.divider()
+                                    st.markdown(
+                                        f'<p style="font-size: 1.5rem; padding-left: .25rem;">{label}</p>',
+                                        unsafe_allow_html=True,
+                                    )
+                                with col3:
+                                    st.markdown(
+                                        f'<p style="font-size: 1.5rem; padding-left: .25rem;">{count}</p>',
+                                        unsafe_allow_html=True,
+                                    )
+                                st.markdown('---')
                     else:
                         st.info('No components to compare')
 
